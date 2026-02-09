@@ -1,0 +1,202 @@
+--// SERVICES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+--// STATES
+local CamAim, CamPlayer, CamNPC = false, true, false
+local ShiftAim, ShiftPlayer, ShiftNPC = false, true, false
+
+--// SOUND
+local function playClick(parent)
+    local s = Instance.new("Sound")
+    s.SoundId = "rbxassetid://9118828561"
+    s.Volume = 1
+    s.Parent = parent or SoundService
+    s:Play()
+    game:GetService("Debris"):AddItem(s, 2)
+end
+
+--// LED EFFECT
+local function applyRedLED(frame)
+    frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    frame.BorderSizePixel = 0
+
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0,6)
+
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Color = Color3.fromRGB(255,0,0)
+    stroke.Thickness = 2
+    stroke.Transparency = 0.25
+
+    local grad = Instance.new("UIGradient", stroke)
+    grad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,80,80)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0))
+    }
+
+    TweenService:Create(
+        stroke,
+        TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Transparency = 0.6, Thickness = 4}
+    ):Play()
+end
+
+--// UI CREATOR
+local function createMenu(title, pos)
+    local gui = Instance.new("ScreenGui", game.CoreGui)
+    gui.ResetOnSpawn = false
+
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0,160,0,60)
+    frame.Position = pos
+    frame.Active, frame.Draggable = true, true
+    applyRedLED(frame)
+
+    local lbl = Instance.new("TextLabel", frame)
+    lbl.Size = UDim2.new(1,0,0,18)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = title
+    lbl.TextScaled = true
+    lbl.TextColor3 = Color3.fromRGB(255,70,70)
+
+    local main = Instance.new("TextButton", frame)
+    main.Size = UDim2.new(1,-10,0,18)
+    main.Position = UDim2.new(0,5,0,20)
+    main.Text = "OFF"
+    main.TextColor3 = Color3.new(1,1,1)
+    main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    Instance.new("UICorner", main)
+
+    local mainStroke = Instance.new("UIStroke", main)
+    mainStroke.Color = Color3.fromRGB(255,0,0)
+    mainStroke.Thickness = 1.5
+    mainStroke.Transparency = 0.6
+
+    local p = Instance.new("TextButton", frame)
+    p.Size = UDim2.new(0.5,-7,0,18)
+    p.Position = UDim2.new(0,5,0,40)
+    p.Text = "PLAYER"
+    p.TextColor3 = Color3.new(1,1,1)
+    p.BackgroundColor3 = Color3.fromRGB(0,120,0)
+    Instance.new("UICorner", p)
+
+    local n = Instance.new("TextButton", frame)
+    n.Size = UDim2.new(0.5,-7,0,18)
+    n.Position = UDim2.new(0.51,0,0,40)
+    n.Text = "NPC"
+    n.TextColor3 = Color3.new(1,1,1)
+    n.BackgroundColor3 = Color3.fromRGB(120,0,0)
+    Instance.new("UICorner", n)
+
+    return main, p, n, mainStroke
+end
+
+--// MENUS
+local CamBtn, CamP, CamN, CamStroke =
+    createMenu("AIM CAMERA", UDim2.new(0,10,0,120))
+
+local ShiftBtn, ShiftP, ShiftN, ShiftStroke =
+    createMenu("AIM SHIFT", UDim2.new(0,10,0,190))
+
+--// BUTTON LOGIC
+CamBtn.MouseButton1Click:Connect(function()
+    playClick(CamBtn)
+    CamAim = not CamAim
+    CamBtn.Text = CamAim and "ON" or "OFF"
+    CamStroke.Transparency = CamAim and 0 or 0.6
+end)
+
+ShiftBtn.MouseButton1Click:Connect(function()
+    playClick(ShiftBtn)
+    ShiftAim = not ShiftAim
+    ShiftBtn.Text = ShiftAim and "ON" or "OFF"
+    ShiftStroke.Transparency = ShiftAim and 0 or 0.6
+end)
+
+CamP.MouseButton1Click:Connect(function()
+    playClick(CamP)
+    CamPlayer, CamNPC = true, false
+    CamP.BackgroundColor3 = Color3.fromRGB(0,120,0)
+    CamN.BackgroundColor3 = Color3.fromRGB(120,0,0)
+end)
+
+CamN.MouseButton1Click:Connect(function()
+    playClick(CamN)
+    CamPlayer, CamNPC = false, true
+    CamN.BackgroundColor3 = Color3.fromRGB(0,120,0)
+    CamP.BackgroundColor3 = Color3.fromRGB(120,0,0)
+end)
+
+ShiftP.MouseButton1Click:Connect(function()
+    playClick(ShiftP)
+    ShiftPlayer, ShiftNPC = true, false
+    ShiftP.BackgroundColor3 = Color3.fromRGB(0,120,0)
+    ShiftN.BackgroundColor3 = Color3.fromRGB(120,0,0)
+end)
+
+ShiftN.MouseButton1Click:Connect(function()
+    playClick(ShiftN)
+    ShiftPlayer, ShiftNPC = false, true
+    ShiftN.BackgroundColor3 = Color3.fromRGB(0,120,0)
+    ShiftP.BackgroundColor3 = Color3.fromRGB(120,0,0)
+end)
+
+--// TARGET FINDER (ĐÃ GHÉP: KHÔNG CẦN NHÌN)
+local function getClosest(playerMode, npcMode)
+    local myChar = LocalPlayer.Character
+    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return end
+
+    local closest, dist = nil, math.huge
+
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("Model") and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") then
+            if v.Humanoid.Health > 0 then
+                local isPlayer = Players:GetPlayerFromCharacter(v)
+                if (playerMode and isPlayer and isPlayer ~= LocalPlayer)
+                or (npcMode and not isPlayer) then
+                    local d = (v.HumanoidRootPart.Position - myHRP.Position).Magnitude
+                    if d < dist then
+                        dist = d
+                        closest = v
+                    end
+                end
+            end
+        end
+    end
+
+    return closest
+end
+
+--// MAIN LOOP
+RunService.RenderStepped:Connect(function()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    if CamAim then
+        local t = getClosest(CamPlayer, CamNPC)
+        if t then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, t.HumanoidRootPart.Position)
+        end
+    end
+
+    if ShiftAim and UIS.MouseBehavior ~= Enum.MouseBehavior.LockCenter then
+        local t = getClosest(ShiftPlayer, ShiftNPC)
+        if t then
+            local look = Vector3.new(
+                t.HumanoidRootPart.Position.X,
+                hrp.Position.Y,
+                t.HumanoidRootPart.Position.Z
+            )
+            hrp.CFrame = CFrame.new(hrp.Position, look)
+        end
+    end
+end)
